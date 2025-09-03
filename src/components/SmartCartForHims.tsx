@@ -469,9 +469,7 @@ const SmartCartForHims = ({
 
   const renderContent = () => (
     <>
-      <div className="overflow-y-auto flex-1 pb-[140px]">
-        {" "}
-        {/* Added padding bottom to prevent content being hidden behind sticky buttons */}
+      <div className="overflow-y-auto flex-1">
         {isCheckoutComplete ? (
           renderSuccessContent()
         ) : (
@@ -479,57 +477,52 @@ const SmartCartForHims = ({
             {currentStep === "cart" && renderCartItems()}
             {currentStep === "address" && renderAddressForm()}
             {currentStep === "payment" && renderPaymentForm()}
-          </div>
-        )}
-      </div>
 
-      {/* Sticky Action Buttons */}
-      {!isCheckoutComplete && (
-        <div className="absolute bottom-0 left-0 right-0 bg-white border-t p-4 space-y-3">
-          {/* Talk to Expert Section */}
-          <div className="bg-white rounded-lg border border-hims-brown/20">
-            <div className="flex items-center justify-between p-4">
-              <span className="text-hims-brown text-lg">
-                Need help with your order?
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-hims-brown hover:bg-hims-beige flex items-center gap-2"
-              >
-                <span className="flex items-center gap-1">
-                  📞 Talk to expert
+            {/* Talk to Expert Section */}
+            <div className="bg-white rounded-lg border border-hims-brown/20">
+              <div className="flex items-center justify-between p-4">
+                <span className="text-hims-brown text-lg">
+                  Need help with your order?
                 </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-hims-brown hover:bg-hims-beige flex items-center gap-2"
+                >
+                  <span className="flex items-center gap-1">
+                    📞 Talk to expert
+                  </span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                size="lg"
+                className="flex-1 h-12 border-hims-brown text-hims-brown hover:bg-hims-beige"
+                onClick={() =>
+                  currentStep !== "cart" ? setCurrentStep("cart") : onClose()
+                }
+              >
+                {currentStep !== "cart" ? "Back" : "Cancel"}
+              </Button>
+              <Button
+                size="lg"
+                className="flex-1 h-12 bg-hims-brown hover:bg-hims-brown-dark text-white"
+                onClick={handleProceed}
+              >
+                {currentStep === "cart"
+                  ? "Add Delivery Address"
+                  : currentStep === "address"
+                  ? "Add Payment Details"
+                  : "Complete Purchase"}
               </Button>
             </div>
           </div>
-
-          {/* Main Action Buttons */}
-          <div className="flex gap-3">
-            <Button
-              variant="outline"
-              size="lg"
-              className="flex-1 h-12 border-hims-brown text-hims-brown hover:bg-hims-beige"
-              onClick={() =>
-                currentStep !== "cart" ? setCurrentStep("cart") : onClose()
-              }
-            >
-              {currentStep !== "cart" ? "Back" : "Cancel"}
-            </Button>
-            <Button
-              size="lg"
-              className="flex-1 h-12 bg-hims-brown hover:bg-hims-brown-dark text-white"
-              onClick={handleProceed}
-            >
-              {currentStep === "cart"
-                ? "Add Delivery Address"
-                : currentStep === "address"
-                ? "Add Payment Details"
-                : "Complete Purchase"}
-            </Button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </>
   );
 
