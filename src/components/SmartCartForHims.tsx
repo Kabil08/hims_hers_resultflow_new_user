@@ -229,13 +229,8 @@ const SmartCartForHims = ({
                 ? "Delivery Address"
                 : "Payment Details"}
             </h2>
-            <div className="bg-hims-brown text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-              <Sparkles className="h-3 w-3" /> Enterprise AI
-            </div>
           </div>
-          <p className="text-sm text-hims-brown/60">
-            ResultFlow AI - Enterprise Agentic AI
-          </p>
+          <p className="text-sm text-hims-brown/60">Powered by ResultFlow AI</p>
         </div>
       </div>
       <Button

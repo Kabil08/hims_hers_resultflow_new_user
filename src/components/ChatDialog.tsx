@@ -629,7 +629,7 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
                     ResultFlow AI Assistant
                   </SheetTitle>
                   <SheetDescription className="text-sm text-hims-beige/80">
-                    Enterprise Agentic AI
+                    Powered by ResultFlow AI
                   </SheetDescription>
                 </div>
               </div>
