@@ -2,11 +2,11 @@ import { X, Minus, Plus, Sparkles, PartyPopper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
 import { CartItem } from "@/types/chat";
-import { mockUserData } from "@/data/mockData";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Drawer, DrawerContent, DrawerHeader } from "@/components/ui/drawer";
 import { useState, useEffect } from "react";
 import confetti from "canvas-confetti";
+import { Input } from "@/components/ui/input";
 
 interface ConfettiOptions {
   spread?: number;
@@ -22,6 +22,60 @@ interface SmartCartForHimsProps {
   onUpdateQuantity: (productId: string, newQuantity: number) => void;
 }
 
+interface AddressForm {
+  street: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
+interface PaymentForm {
+  cardNumber: string;
+  expiryDate: string;
+  cvv: string;
+  cardholderName: string;
+}
+
+interface CardOffer {
+  cardType: string;
+  logo: string;
+  benefits: string[];
+  discount: number;
+}
+
+const cardOffers: CardOffer[] = [
+  {
+    cardType: "Bank of America",
+    logo: "https://res.cloudinary.com/dbtapyfau/image/upload/v1756766546/boa-logo.png",
+    benefits: [
+      "6% off on all purchases",
+      "Additional 5% on subscriptions",
+      "Free express shipping",
+    ],
+    discount: 11,
+  },
+  {
+    cardType: "Chase",
+    logo: "https://res.cloudinary.com/dbtapyfau/image/upload/v1756766546/chase-logo.png",
+    benefits: [
+      "5% cashback on first purchase",
+      "3% off on subscriptions",
+      "Priority delivery",
+    ],
+    discount: 8,
+  },
+  {
+    cardType: "Citi",
+    logo: "https://res.cloudinary.com/dbtapyfau/image/upload/v1756766546/citi-logo.png",
+    benefits: [
+      "4% off on all purchases",
+      "Double rewards points",
+      "Extended return period",
+    ],
+    discount: 4,
+  },
+];
+
 const SmartCartForHims = ({
   isOpen,
   onClose,
@@ -30,11 +84,42 @@ const SmartCartForHims = ({
 }: SmartCartForHimsProps) => {
   const isMobile = useIsMobile();
   const [isCheckoutComplete, setIsCheckoutComplete] = useState(false);
+  const [currentStep, setCurrentStep] = useState<
+    "cart" | "address" | "payment"
+  >("cart");
+  const [addressForm, setAddressForm] = useState<AddressForm>({
+    street: "",
+    city: "",
+    state: "",
+    zipCode: "",
+  });
+  const [paymentForm, setPaymentForm] = useState<PaymentForm>({
+    cardNumber: "",
+    expiryDate: "",
+    cvv: "",
+    cardholderName: "",
+  });
+  const [currentCardOffer, setCurrentCardOffer] = useState<CardOffer | null>(
+    null
+  );
 
-  // Reset checkout state when dialog is opened
+  // Reset states when dialog is opened
   useEffect(() => {
     if (isOpen) {
       setIsCheckoutComplete(false);
+      setCurrentStep("cart");
+      setAddressForm({
+        street: "",
+        city: "",
+        state: "",
+        zipCode: "",
+      });
+      setPaymentForm({
+        cardNumber: "",
+        expiryDate: "",
+        cvv: "",
+        cardholderName: "",
+      });
     }
   }, [isOpen]);
 
@@ -88,7 +173,17 @@ const SmartCartForHims = ({
 
   const handleCheckout = () => {
     setIsCheckoutComplete(true);
-    setTimeout(triggerConfetti, 100); // Slight delay to ensure animation runs after state update
+    setTimeout(triggerConfetti, 100);
+  };
+
+  const handleProceed = () => {
+    if (currentStep === "cart") {
+      setCurrentStep("address");
+    } else if (currentStep === "address") {
+      setCurrentStep("payment");
+    } else if (currentStep === "payment") {
+      handleCheckout();
+    }
   };
 
   const renderSuccessContent = () => (
@@ -118,19 +213,29 @@ const SmartCartForHims = ({
   const renderHeader = () => (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-hims-brown rounded-full flex items-center justify-center">
-          <Sparkles className="h-4 w-4 text-white" />
+        <div className="w-8 h-8 bg-hims-brown rounded-full flex items-center justify-center overflow-hidden">
+          <img
+            src="https://res.cloudinary.com/dbtapyfau/image/upload/v1756903994/ResultFlow.ai_Logo_xixmca.jpg"
+            alt="ResultFlow AI"
+            className="w-full h-full object-cover"
+          />
         </div>
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-hims-brown">
-              Your smart cart
+              {currentStep === "cart"
+                ? "ResultFlow Smart Cart"
+                : currentStep === "address"
+                ? "Delivery Address"
+                : "Payment Details"}
             </h2>
             <div className="bg-hims-brown text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-              <Sparkles className="h-3 w-3" /> AI
+              <Sparkles className="h-3 w-3" /> Enterprise AI
             </div>
           </div>
-          <p className="text-sm text-hims-brown/60">Powered by ResultFlow AI</p>
+          <p className="text-sm text-hims-brown/60">
+            ResultFlow AI - Enterprise Agentic AI
+          </p>
         </div>
       </div>
       <Button
@@ -144,140 +249,296 @@ const SmartCartForHims = ({
     </div>
   );
 
+  const renderCartItems = () => (
+    <div className="space-y-4">
+      {cartItems.map((item) => (
+        <div
+          key={item.id}
+          className="p-4 bg-hims-beige rounded-lg border border-hims-beige-dark"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-20 bg-white rounded-lg overflow-hidden shrink-0">
+              <img
+                src={item.image || "/placeholder.svg"}
+                alt={item.name}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-medium text-hims-brown">{item.name}</h3>
+              <p className="text-sm text-hims-brown/60">
+                ${item.price.toFixed(2)}/mo
+              </p>
+            </div>
+            <div className="flex items-center gap-2 bg-white rounded-lg p-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 hover:bg-hims-beige text-hims-brown"
+                onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+              >
+                <Minus className="h-3 w-3" />
+              </Button>
+              <span className="text-sm font-medium w-6 text-center text-hims-brown">
+                {item.quantity}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 hover:bg-hims-beige text-hims-brown"
+                onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+              >
+                <Plus className="h-3 w-3" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const renderAddressForm = () => (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-hims-brown">
+          Street Address
+        </label>
+        <Input
+          value={addressForm.street}
+          onChange={(e) =>
+            setAddressForm((prev) => ({ ...prev, street: e.target.value }))
+          }
+          placeholder="Enter your street address"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-hims-brown">City</label>
+        <Input
+          value={addressForm.city}
+          onChange={(e) =>
+            setAddressForm((prev) => ({ ...prev, city: e.target.value }))
+          }
+          placeholder="Enter your city"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-hims-brown">State</label>
+          <Input
+            value={addressForm.state}
+            onChange={(e) =>
+              setAddressForm((prev) => ({ ...prev, state: e.target.value }))
+            }
+            placeholder="Enter state"
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-hims-brown">
+            ZIP Code
+          </label>
+          <Input
+            value={addressForm.zipCode}
+            onChange={(e) =>
+              setAddressForm((prev) => ({ ...prev, zipCode: e.target.value }))
+            }
+            placeholder="Enter ZIP code"
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const detectCardType = (cardNumber: string) => {
+    // Remove spaces and dashes
+    const number = cardNumber.replace(/[\s-]/g, "");
+
+    if (number.startsWith("4")) {
+      return "Bank of America";
+    } else if (number.startsWith("5")) {
+      return "Chase";
+    } else if (number.startsWith("3")) {
+      return "Citi";
+    }
+    return null;
+  };
+
+  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPaymentForm((prev) => ({ ...prev, cardNumber: value }));
+
+    const cardType = detectCardType(value);
+    const offer = cardOffers.find((o) => o.cardType === cardType);
+    setCurrentCardOffer(offer || null);
+  };
+
+  const renderPaymentForm = () => (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-hims-brown">
+          Cardholder Name
+        </label>
+        <Input
+          value={paymentForm.cardholderName}
+          onChange={(e) =>
+            setPaymentForm((prev) => ({
+              ...prev,
+              cardholderName: e.target.value,
+            }))
+          }
+          placeholder="Enter cardholder name"
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-hims-brown">
+          Card Number
+        </label>
+        <Input
+          value={paymentForm.cardNumber}
+          onChange={handleCardNumberChange}
+          placeholder="Enter card number"
+          maxLength={19}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-hims-brown">
+            Expiry Date
+          </label>
+          <Input
+            value={paymentForm.expiryDate}
+            onChange={(e) =>
+              setPaymentForm((prev) => ({
+                ...prev,
+                expiryDate: e.target.value,
+              }))
+            }
+            placeholder="MM/YY"
+            maxLength={5}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-hims-brown">CVV</label>
+          <Input
+            value={paymentForm.cvv}
+            onChange={(e) =>
+              setPaymentForm((prev) => ({ ...prev, cvv: e.target.value }))
+            }
+            placeholder="Enter CVV"
+            type="password"
+            maxLength={4}
+          />
+        </div>
+      </div>
+
+      {/* AI Card Offer Section */}
+      {currentCardOffer && (
+        <div className="mt-6 p-4 bg-hims-beige rounded-lg border border-hims-brown/20">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-4 w-4 text-hims-brown" />
+            <h3 className="font-medium text-hims-brown">
+              Special {currentCardOffer.cardType} Offer!
+            </h3>
+          </div>
+          <div className="bg-white rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-lg font-semibold text-green-600">
+                {currentCardOffer.discount}% Total Savings
+              </span>
+              {/* <img src={currentCardOffer.logo} alt={currentCardOffer.cardType} className="h-8" /> */}
+            </div>
+            <div className="space-y-2">
+              {currentCardOffer.benefits.map((benefit, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 text-sm text-hims-brown"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  {benefit}
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-hims-brown/60 flex items-center gap-1">
+            <Sparkles className="h-3 w-3" />
+            AI-powered recommendation based on your card
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
   const renderContent = () => (
     <>
-      <div className="overflow-y-auto flex-1">
+      <div className="overflow-y-auto flex-1 pb-[140px]">
+        {" "}
+        {/* Added padding bottom to prevent content being hidden behind sticky buttons */}
         {isCheckoutComplete ? (
           renderSuccessContent()
         ) : (
           <div className="p-4 space-y-4">
-            {/* Cart Items */}
-            {cartItems.map((item) => (
-              <div
-                key={item.id}
-                className="p-4 bg-hims-beige rounded-lg border border-hims-beige-dark"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 bg-white rounded-lg overflow-hidden shrink-0">
-                    <img
-                      src={item.image || "/placeholder.svg"}
-                      alt={item.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-hims-brown">{item.name}</h3>
-                    <p className="text-sm text-hims-brown/60">
-                      ${item.price.toFixed(2)}/mo
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 bg-white rounded-lg p-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 hover:bg-hims-beige text-hims-brown"
-                      onClick={() =>
-                        onUpdateQuantity(item.id, item.quantity - 1)
-                      }
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <span className="text-sm font-medium w-6 text-center text-hims-brown">
-                      {item.quantity}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 hover:bg-hims-beige text-hims-brown"
-                      onClick={() =>
-                        onUpdateQuantity(item.id, item.quantity + 1)
-                      }
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {/* Payment Method */}
-            <div className="p-4 bg-white rounded-lg border border-hims-brown/20">
-              <h3 className="text-hims-brown mb-2">Payment Method</h3>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-hims-brown">
-                    {mockUserData.paymentMethod.cardType} ••••{" "}
-                    {mockUserData.paymentMethod.lastFourDigits}
-                  </span>
-                  {mockUserData.paymentMethod.discount && (
-                    <span className="text-xs text-green-600 bg-green-100 px-2 py-0.5 rounded">
-                      {mockUserData.paymentMethod.discount}% off
-                    </span>
-                  )}
-                </div>
-                <Button variant="outline" size="sm" className="text-hims-brown">
-                  Change
-                </Button>
-              </div>
-              <p className="text-sm text-hims-brown/60 mt-2 flex items-center gap-1">
-                <Sparkles className="h-3 w-3" />
-                Powered by ResultFlow AI: Using your Bank of America credit card
-                to checkout gets you the most discount
-              </p>
-            </div>
-
-            {/* Delivery Address */}
-            <div className="p-4 bg-white rounded-lg border border-hims-brown/20">
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-hims-brown">Delivery Address</h3>
-              </div>
-              <p className="text-sm text-hims-brown/60 mb-3">
-                📍 Based on your recent purchases, this is your preferred
-                delivery address
-              </p>
-              <div className="text-sm text-hims-brown">
-                <p>{mockUserData.address.street}</p>
-                <p>
-                  {mockUserData.address.city}, {mockUserData.address.state}{" "}
-                  {mockUserData.address.zipCode}
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-3 text-hims-brown"
-              >
-                Change
-              </Button>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 mt-4">
-              <Button
-                variant="outline"
-                size="lg"
-                className="flex-1 h-12 border-hims-brown text-hims-brown hover:bg-hims-beige"
-              >
-                Move to Cart
-              </Button>
-              <Button
-                size="lg"
-                className="flex-1 h-12 bg-hims-brown hover:bg-hims-brown-dark text-white"
-                onClick={handleCheckout}
-              >
-                Proceed to checkout
-              </Button>
-            </div>
+            {currentStep === "cart" && renderCartItems()}
+            {currentStep === "address" && renderAddressForm()}
+            {currentStep === "payment" && renderPaymentForm()}
           </div>
         )}
       </div>
+
+      {/* Sticky Action Buttons */}
+      {!isCheckoutComplete && (
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t p-4 space-y-3">
+          {/* Talk to Expert Section */}
+          <div className="bg-white rounded-lg border border-hims-brown/20">
+            <div className="flex items-center justify-between p-4">
+              <span className="text-hims-brown text-lg">
+                Need help with your order?
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-hims-brown hover:bg-hims-beige flex items-center gap-2"
+              >
+                <span className="flex items-center gap-1">
+                  📞 Talk to expert
+                </span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Main Action Buttons */}
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              size="lg"
+              className="flex-1 h-12 border-hims-brown text-hims-brown hover:bg-hims-beige"
+              onClick={() =>
+                currentStep !== "cart" ? setCurrentStep("cart") : onClose()
+              }
+            >
+              {currentStep !== "cart" ? "Back" : "Cancel"}
+            </Button>
+            <Button
+              size="lg"
+              className="flex-1 h-12 bg-hims-brown hover:bg-hims-brown-dark text-white"
+              onClick={handleProceed}
+            >
+              {currentStep === "cart"
+                ? "Add Delivery Address"
+                : currentStep === "address"
+                ? "Add Payment Details"
+                : "Complete Purchase"}
+            </Button>
+          </div>
+        </div>
+      )}
     </>
   );
 
   if (isMobile) {
     return (
       <Drawer open={isOpen} onOpenChange={onClose}>
-        <DrawerContent className="h-[85vh] bg-white">
+        <DrawerContent className="h-[85vh] bg-white relative">
+          {" "}
+          {/* Added relative positioning */}
           <DrawerHeader className="border-b border-hims-beige bg-hims-beige">
             {renderHeader()}
           </DrawerHeader>
@@ -289,7 +550,9 @@ const SmartCartForHims = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] p-0">
+      <DialogContent className="sm:max-w-[600px] p-0 relative">
+        {" "}
+        {/* Added relative positioning */}
         <DialogHeader className="p-4 border-b bg-hims-beige">
           {renderHeader()}
         </DialogHeader>

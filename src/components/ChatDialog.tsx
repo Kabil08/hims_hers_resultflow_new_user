@@ -1,5 +1,15 @@
-import { useState } from "react";
-import { X, Send, Bot, User, Sparkles } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import {
+  X,
+  Send,
+  Bot,
+  User,
+  Sparkles,
+  Check,
+  CheckSquare,
+  Square,
+  CreditCard,
+} from "lucide-react";
 import Markdown from "markdown-to-jsx";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,18 +25,82 @@ import {
   ProductRecommendation,
   CartItem,
   Product,
-  PaymentRecommendation,
-  DeliveryRecommendation,
-  SubscriptionRecommendation,
 } from "@/types/chat";
 import { mockRecommendations } from "@/data/mockData";
 import SmartCartForHims from "./SmartCartForHims";
 import { useIsMobile } from "@/hooks/use-mobile";
+import TestimonialsDialog from "./TestimonialsDialog";
 
 interface ChatDialogProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+type UserPreferences = {
+  category?: "hair" | "skin";
+  concerns?: string[];
+  hasAnsweredInitialQuestions: boolean;
+};
+
+interface Option {
+  id: string;
+  label: string;
+  value: string;
+}
+
+interface CardOffer {
+  cardType: string;
+  logo: string;
+  benefits: string[];
+  discount: number;
+}
+
+const cardOffers: CardOffer[] = [
+  {
+    cardType: "Bank of America",
+    logo: "https://res.cloudinary.com/dbtapyfau/image/upload/v1756766546/boa-logo.png",
+    benefits: [
+      "6% off on all purchases",
+      "Additional 5% on subscriptions",
+      "Free express shipping",
+    ],
+    discount: 11,
+  },
+  {
+    cardType: "Chase",
+    logo: "https://res.cloudinary.com/dbtapyfau/image/upload/v1756766546/chase-logo.png",
+    benefits: [
+      "5% cashback on first purchase",
+      "3% off on subscriptions",
+      "Priority delivery",
+    ],
+    discount: 8,
+  },
+  {
+    cardType: "Citi",
+    logo: "https://res.cloudinary.com/dbtapyfau/image/upload/v1756766546/citi-logo.png",
+    benefits: [
+      "4% off on all purchases",
+      "Double rewards points",
+      "Extended return period",
+    ],
+    discount: 4,
+  },
+];
+
+const hairConcerns: Option[] = [
+  { id: "1", label: "Hair thinning or loss", value: "thinning" },
+  { id: "2", label: "Receding hairline", value: "receding" },
+  { id: "3", label: "Slow hair growth", value: "slow_growth" },
+  { id: "4", label: "Scalp issues", value: "scalp" },
+];
+
+const skinConcerns: Option[] = [
+  { id: "1", label: "Acne or breakouts", value: "acne" },
+  { id: "2", label: "Signs of aging", value: "aging" },
+  { id: "3", label: "Uneven skin tone", value: "uneven" },
+  { id: "4", label: "Dark spots", value: "dark_spots" },
+];
 
 const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
   const isMobile = useIsMobile();
@@ -35,51 +109,207 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
       id: "1",
       type: "assistant",
       content:
-        "Hi! I'm your personal care assistant. Based on your profile and preferences, here's what we have analyzed:\n\n" +
-        "**🔍 Your Self-Described Conditions:**\n" +
-        "• Early-stage hair thinning\n" +
-        "• Occasional stress and anxiety\n\n" +
-        "**📋 Your Medical History:**\n" +
-        "• No contraindications\n\n" +
-        "**🍽️ Food Allergies Analysis:**\n" +
-        "• **Dairy sensitivity** - may contribute to hormonal imbalance\n" +
-        "• **Gluten intolerance** - linked to nutrient absorption issues\n" +
-        "• **Soy allergy** - can affect hormone regulation\n\n" +
-        "Addressing these food sensitivities alongside treatment can improve overall results.\n\n" +
-        "Based on this, we recommend our Complete Hair Loss Treatment (AI) package:",
+        "Welcome to Hims! I'm your personal wellness advisor. I can help you find the right solutions for hair care and skin concerns. What would you like to focus on improving today?",
       timestamp: new Date(),
-      recommendations: [mockRecommendations.hair],
-      paymentRecommendation: {
-        title: "Recommended Payment Method",
-        cardType: "Bank of America",
-        lastFour: "4532",
-        benefits: [
-          "6% off on all purchases",
-          "Additional 5% on subscriptions",
-          "Free express shipping",
-        ],
-      },
-      deliveryRecommendation: {
-        title: "Delivery Address",
-        address: "123 Main St",
-        city: "San Francisco",
-        state: "CA",
-        zip: "94105",
-        deliverySpeed: "Express 24h",
-        confidence: "98%",
-      },
-      subscriptionRecommendation: {
-        title: "Recommended Plan",
-        interval: "Monthly",
-        savings: "20%",
-        benefits: ["Free shipping", "Auto-refills", "Flexible scheduling"],
-      },
     },
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showSmartCart, setShowSmartCart] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [userPreferences, setUserPreferences] = useState<UserPreferences>({
+    hasAnsweredInitialQuestions: false,
+  });
+  const [selectedConcerns, setSelectedConcerns] = useState<string[]>([]);
+  const [showOptions, setShowOptions] = useState<boolean>(true);
+  const [selectedProducts, setSelectedProducts] = useState<Set<string>>(
+    new Set()
+  );
+  const [showTestimonials, setShowTestimonials] = useState(false);
+
+  // Handle restarting the journey
+  const handleRestartJourney = useCallback(() => {
+    console.log("Restarting journey"); // Debug log
+
+    // First close testimonials
+    setShowTestimonials(false);
+
+    // Reset states
+    setUserPreferences({
+      hasAnsweredInitialQuestions: false,
+      category: undefined,
+      concerns: undefined,
+    });
+    setSelectedConcerns([]);
+    setShowOptions(true);
+    setSelectedProducts(new Set());
+
+    // Add welcome message
+    setMessages([
+      {
+        id: Date.now().toString(),
+        type: "assistant",
+        content:
+          "Welcome back! I'm excited to help you find the perfect solutions for your needs. Let's start fresh and find what works best for you. What would you like to focus on improving today?",
+        timestamp: new Date(),
+      },
+    ]);
+
+    // Force reopen chat
+    setTimeout(() => {
+      console.log("Opening chat dialog"); // Debug log
+      if (!isOpen) {
+        onClose(); // Toggle open if closed
+      }
+    }, 300);
+  }, [onClose, isOpen]);
+
+  // Handle closing the chat dialog
+  const handleCloseChat = useCallback(() => {
+    console.log("Closing chat dialog"); // Debug log
+    if (isOpen) {
+      onClose();
+      // Show testimonials after a delay
+      setTimeout(() => {
+        console.log("Opening testimonials dialog"); // Debug log
+        setShowTestimonials(true);
+      }, 300);
+    }
+  }, [onClose, isOpen]);
+
+  // Handle sheet close from clicking outside or pressing escape
+  const handleSheetClose = useCallback(
+    (open: boolean) => {
+      if (!open && isOpen) {
+        // Only handle close if currently open
+        handleCloseChat();
+      }
+    },
+    [handleCloseChat, isOpen]
+  );
+
+  // Handle testimonials close
+  const handleTestimonialsClose = useCallback(() => {
+    console.log("Closing testimonials"); // Debug log
+    setShowTestimonials(false);
+  }, []);
+
+  // Monitor state changes
+  useEffect(() => {
+    if (isOpen) {
+      console.log("Chat dialog opened"); // Debug log
+      setShowTestimonials(false);
+    } else {
+      console.log("Chat dialog closed"); // Debug log
+    }
+  }, [isOpen]);
+
+  const handleOptionSelect = (option: string) => {
+    if (!userPreferences.category) {
+      // Handle category selection
+      const category = option === "hair" ? "hair" : "skin";
+      setUserPreferences((prev) => ({ ...prev, category }));
+
+      // Add user's selection as a message
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        type: "user",
+        content:
+          option === "hair" ? "Hair care solutions" : "Skin care treatments",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+
+      // Add AI's follow-up question
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content:
+          category === "hair"
+            ? "Let's find your perfect hair care solution. Which of these concerns would you like to address?"
+            : "Let's create your personalized skincare routine. Which areas would you like to improve?",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+      setShowOptions(true);
+    } else if (!userPreferences.hasAnsweredInitialQuestions) {
+      // Handle concern selection
+      setSelectedConcerns((prev) => {
+        const newConcerns = prev.includes(option)
+          ? prev.filter((c) => c !== option)
+          : [...prev, option];
+        return newConcerns;
+      });
+    }
+  };
+
+  const handleConfirmConcerns = () => {
+    if (selectedConcerns.length === 0) return;
+
+    const concerns = selectedConcerns.map((concern) => {
+      const options =
+        userPreferences.category === "hair" ? hairConcerns : skinConcerns;
+      return options.find((opt) => opt.value === concern)?.label || concern;
+    });
+
+    // Add user's concerns as a message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: "user",
+      content: concerns.join(", "),
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    setUserPreferences((prev) => ({
+      ...prev,
+      concerns: selectedConcerns,
+      hasAnsweredInitialQuestions: true,
+    }));
+
+    // Add AI's response with recommendations
+    const assistantMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      type: "assistant",
+      content:
+        userPreferences.category === "hair"
+          ? "Perfect! I've selected these clinically-proven hair treatments specifically for your needs. These are the same solutions that have helped thousands of men achieve thicker, healthier hair:"
+          : "Based on your skin concerns, I've curated these dermatologist-recommended treatments. These are our most effective solutions for achieving healthier, better-looking skin:",
+      timestamp: new Date(),
+      recommendations: [
+        userPreferences.category === "hair"
+          ? mockRecommendations.hair
+          : mockRecommendations.skin,
+      ],
+    };
+    setMessages((prev) => [...prev, assistantMessage]);
+
+    // Add follow-up suggestion and immediately show options for the other category
+    setTimeout(() => {
+      const newCategory = userPreferences.category === "hair" ? "skin" : "hair";
+
+      const followUpMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        type: "assistant",
+        content:
+          userPreferences.category === "hair"
+            ? "Complete your self-care routine! 👨‍⚕️\n\nWhile you're enhancing your hair care, many of our customers also achieve great results with our dermatologist-recommended skincare treatments. Ready to discover personalized solutions for clearer, healthier skin?\n\nWhich skin concerns would you like to address?"
+            : "Enhance your wellness journey! 👨‍⚕️\n\nWhile we're improving your skin, did you know that many of our customers also benefit from our scientifically-proven hair care treatments? Let's ensure you're looking and feeling your best.\n\nWhich hair concerns would you like to address?",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, followUpMessage]);
+      setUserPreferences((prev) => ({
+        ...prev,
+        category: newCategory,
+        hasAnsweredInitialQuestions: false,
+      }));
+      setSelectedConcerns([]);
+      setShowOptions(true);
+    }, 2000);
+
+    setShowOptions(false);
+  };
 
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
@@ -95,9 +325,9 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
     setInputValue("");
     setIsTyping(true);
 
-    // Simulate AI response
+    // Process user input
     setTimeout(() => {
-      const response = getAIResponse(inputValue.trim());
+      const response = processUserInput(inputValue.trim());
       const assistantMessage: Message = {
         id: Date.now().toString(),
         type: "assistant",
@@ -110,178 +340,25 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
     }, 1000 + Math.random() * 1000);
   };
 
-  const getAIResponse = (
+  const processUserInput = (
     userMessage: string
   ): { content: string; recommendations?: ProductRecommendation[] } => {
     const lowerMessage = userMessage.toLowerCase();
 
-    // Hair Loss
-    if (
-      lowerMessage.includes("hair loss") ||
-      lowerMessage.includes("hair regrowth") ||
-      lowerMessage.includes("balding") ||
-      lowerMessage.includes("hair growth") ||
-      lowerMessage.includes("thinning hair")
-    ) {
+    // Handle follow-up questions about how products work
+    if (lowerMessage.includes("how") || lowerMessage.includes("work")) {
       return {
         content:
-          "We offer a comprehensive hair loss treatment plan that includes:\n\n" +
-          "• Finasteride (1mg) - blocks DHT to prevent further hair loss\n" +
-          "• Minoxidil 5% Solution - stimulates hair regrowth\n" +
-          "• Biotin Gummies - supports healthy hair growth\n" +
-          "• Thickening Shampoo - improves hair appearance\n\n" +
-          "Would you like to learn more about how these treatments work together for maximum effectiveness?",
-        recommendations: [mockRecommendations.hair],
+          userPreferences.category === "hair"
+            ? "Our hair care treatments work through a combination of:\n\n• DHT blocking to prevent further hair loss\n• Growth stimulation to promote new hair growth\n• Nutrient supplementation for overall hair health\n\nWould you like to try any of our recommended products?"
+            : "Our skin care treatments work through:\n\n• Targeted active ingredients\n• Clinically proven formulations\n• Gentle yet effective approach\n\nWould you like to try any of our recommended products?",
       };
     }
 
-    // Weight Loss
-    if (
-      lowerMessage.includes("weight") ||
-      lowerMessage.includes("lose weight") ||
-      lowerMessage.includes("diet") ||
-      lowerMessage.includes("appetite") ||
-      lowerMessage.includes("metabolism")
-    ) {
-      return {
-        content:
-          "Our weight management program includes FDA-approved medications and comprehensive support:\n\n" +
-          "• Semaglutide (GLP-1) - clinically proven for significant weight loss\n" +
-          "• Appetite Management medication - helps control food cravings\n" +
-          "• Personalized Weight Loss Program - includes nutrition guidance\n" +
-          "• Metabolism Support - supplements to support your journey\n\n" +
-          "Would you like to explore these options and find the right combination for your goals?",
-        recommendations: [mockRecommendations.weightLoss],
-      };
-    }
-
-    // Skin Care
-    if (
-      lowerMessage.includes("skin") ||
-      lowerMessage.includes("acne") ||
-      lowerMessage.includes("aging") ||
-      lowerMessage.includes("wrinkles") ||
-      lowerMessage.includes("dark spots")
-    ) {
-      return {
-        content:
-          "Based on your profile and preferences, here's what we have analyzed for your skin care needs:\n\n" +
-          "**🔍 Your Self-Described Skin Conditions:**\n" +
-          "• Uneven skin tone\n" +
-          "• Occasional breakouts\n" +
-          "• Early signs of aging\n\n" +
-          "**📋 Your Medical History:**\n" +
-          "• No active skin conditions\n" +
-          "• No adverse reactions to retinoids\n\n" +
-          "**🍽️ Food Allergies Analysis:**\n" +
-          "• **Peanut allergy** - may cause skin inflammation and rashes\n" +
-          "• **Shellfish sensitivity** - linked to skin reactions and breakouts\n" +
-          "• **Egg allergy** - can affect skin barrier function\n\n" +
-          "Based on this comprehensive analysis, here are our recommended treatments:\n\n" +
-          "• Tretinoin Cream 0.025% - prescription-strength retinoid for acne and anti-aging\n" +
-          "• Advanced Anti-Aging Serum - with peptides and antioxidants\n" +
-          "• Gentle Cleanser - suitable for all skin types\n" +
-          "• Dark Spot Treatment - targets hyperpigmentation\n\n" +
-          "What specific skin concerns would you like to address?",
-        recommendations: [mockRecommendations.skin],
-      };
-    }
-
-    // Mental Health
-    if (
-      lowerMessage.includes("anxiety") ||
-      lowerMessage.includes("stress") ||
-      lowerMessage.includes("depression") ||
-      lowerMessage.includes("mental health") ||
-      lowerMessage.includes("sleep") ||
-      lowerMessage.includes("therapy")
-    ) {
-      return {
-        content:
-          "We provide comprehensive mental health support including:\n\n" +
-          "• Escitalopram 10mg - FDA-approved medication for anxiety and depression\n" +
-          "• Online Therapy - convenient sessions with licensed professionals\n" +
-          "• Stress Management Kit - tools and techniques for daily anxiety relief\n" +
-          "• Sleep Support - natural supplement for better rest\n\n" +
-          "Would you like to learn more about any of these options?",
-        recommendations: [mockRecommendations.mental],
-      };
-    }
-
-    // Delivery Process
-    if (
-      lowerMessage.includes("delivery") ||
-      lowerMessage.includes("shipping") ||
-      lowerMessage.includes("track") ||
-      lowerMessage.includes("order status") ||
-      lowerMessage.includes("when will") ||
-      lowerMessage.includes("how long") ||
-      lowerMessage.includes("receive")
-    ) {
-      return {
-        content:
-          "🚚 **AI Smart Delivery!**\n\n" +
-          "✅ **Free express delivery** within 24 hours for orders over $500\n\n" +
-          "✅ **Same-day delivery** available in select cities\n\n" +
-          "✅ **Smart packaging** with eco-friendly materials\n\n" +
-          "✅ **Real-time tracking** with AI-powered updates\n\n" +
-          "✅ **Contactless delivery** options\n\n" +
-          "📦 Your orders will be delivered faster with our AI logistics optimization!",
-      };
-    }
-
-    // Bank Offers and EMI
-    if (
-      lowerMessage.includes("emi") ||
-      lowerMessage.includes("bank offer") ||
-      lowerMessage.includes("payment option") ||
-      lowerMessage.includes("installment") ||
-      lowerMessage.includes("credit card") ||
-      lowerMessage.includes("debit card") ||
-      lowerMessage.includes("discount")
-    ) {
-      return {
-        content:
-          "💳 **AI Payment Optimizer!**\n\n" +
-          "✅ **No-cost EMI** available on orders above $99\n\n" +
-          "✅ **Flexible EMI options** with 3, 6, and 12-month plans\n\n" +
-          "✅ **10% instant discount** up to $30 with HIMS Credit Card\n\n" +
-          "✅ **Additional 5% off** with HIMS Debit Card\n\n" +
-          "✅ **Special discounts** on subscription plans\n\n" +
-          "💰 Save more with our exclusive banking partners!",
-      };
-    }
-
-    // Subscription and Refills
-    if (
-      lowerMessage.includes("subscription") ||
-      lowerMessage.includes("refill") ||
-      lowerMessage.includes("cancel") ||
-      lowerMessage.includes("pause") ||
-      lowerMessage.includes("monthly") ||
-      lowerMessage.includes("automatic")
-    ) {
-      return {
-        content:
-          "🔄 **Smart Subscription Benefits!**\n\n" +
-          "✅ **Save 20%** on monthly subscriptions\n\n" +
-          "✅ **Free shipping** on all refills\n\n" +
-          "✅ **Flexible schedule** for deliveries\n\n" +
-          "✅ **Easy management** - pause or cancel anytime\n\n" +
-          "✅ **Auto refills** before you run out\n\n" +
-          "🎁 Join our subscription program for the best value!",
-      };
-    }
-
-    // Default response with overview of all services
+    // Default response
     return {
       content:
-        "I can help you with several health concerns including:\n\n" +
-        "• Hair Loss Treatment - Finasteride, Minoxidil, and more\n" +
-        "• Weight Management - GLP-1 medications and support programs\n" +
-        "• Skincare Solutions - Tretinoin and anti-aging treatments\n" +
-        "• Mental Health Support - Medication and therapy services\n\n" +
-        "What specific health concern would you like to discuss?",
+        "I'm here to help you achieve your wellness goals! Feel free to ask about:\n\n• How our treatments are scientifically formulated\n• Expected timeline for results\n• Usage and application tips\n• Success stories and clinical results\n• Combining treatments for optimal results",
     };
   };
 
@@ -289,21 +366,6 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
     if (e.key === "Enter") {
       handleSendMessage();
     }
-  };
-
-  const handleAddToCart = (product: Product) => {
-    setCartItems((prev) => {
-      const existingItem = prev.find((item) => item.id === product.id);
-      if (existingItem) {
-        return prev.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      return [...prev, { ...product, quantity: 1 }];
-    });
-    setShowSmartCart(true);
   };
 
   const handleUpdateQuantity = (productId: string, newQuantity: number) => {
@@ -318,6 +380,48 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
     );
   };
 
+  const handleProductSelect = (productId: string) => {
+    setSelectedProducts((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = (products: Product[]) => {
+    setSelectedProducts((prev) => {
+      const allSelected = products.every((p) => prev.has(p.id));
+      if (allSelected) {
+        return new Set();
+      } else {
+        return new Set(products.map((p) => p.id));
+      }
+    });
+  };
+
+  const handleAddSelectedToCart = (products: Product[]) => {
+    const selectedItems = products.filter((p) => selectedProducts.has(p.id));
+    selectedItems.forEach((product) => {
+      setCartItems((prev) => {
+        const existingItem = prev.find((item) => item.id === product.id);
+        if (existingItem) {
+          return prev.map((item) =>
+            item.id === product.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          );
+        }
+        return [...prev, { ...product, quantity: 1 }];
+      });
+    });
+    setSelectedProducts(new Set());
+    setShowSmartCart(true);
+  };
+
   const renderRecommendation = (recommendation: ProductRecommendation) => (
     <div className="mt-2 p-4 bg-white rounded-lg border border-hims-brown/20">
       <h3 className="font-semibold text-hims-brown flex items-center gap-2">
@@ -325,9 +429,42 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
         {recommendation.title}
       </h3>
       <p className="text-sm text-gray-600 mt-1">{recommendation.description}</p>
+
+      {/* Select All Button */}
+      <div className="mt-4 mb-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-hims-brown hover:bg-hims-beige flex items-center gap-2"
+          onClick={() => handleSelectAll(recommendation.products)}
+        >
+          {recommendation.products.every((p) => selectedProducts.has(p.id)) ? (
+            <CheckSquare className="h-4 w-4" />
+          ) : (
+            <Square className="h-4 w-4" />
+          )}
+          Select All Products
+        </Button>
+      </div>
+
       <div className="mt-2 space-y-4">
         {recommendation.products.map((product) => (
-          <div key={product.id} className="flex items-center gap-4">
+          <div
+            key={product.id}
+            className={`flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-colors ${
+              selectedProducts.has(product.id)
+                ? "bg-hims-beige/50"
+                : "hover:bg-hims-beige/20"
+            }`}
+            onClick={() => handleProductSelect(product.id)}
+          >
+            <div className="flex items-center justify-center">
+              {selectedProducts.has(product.id) ? (
+                <CheckSquare className="h-5 w-5 text-hims-brown" />
+              ) : (
+                <Square className="h-5 w-5 text-hims-brown" />
+              )}
+            </div>
             <div className="w-20 h-20 bg-hims-beige rounded-lg overflow-hidden shrink-0">
               <img
                 src={product.image || "/placeholder.svg"}
@@ -340,17 +477,25 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
               <p className="text-sm text-gray-500">
                 ${product.price.toFixed(2)}/mo
               </p>
-              <Button
-                size="sm"
-                className="mt-2 bg-hims-brown hover:bg-hims-brown-dark text-white"
-                onClick={() => handleAddToCart(product)}
-              >
-                Add to Cart
-              </Button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Add Selected to Cart Button */}
+      {selectedProducts.size > 0 && (
+        <div className="mt-4">
+          <Button
+            className="w-full bg-hims-brown hover:bg-hims-brown-dark text-white flex items-center justify-center gap-2"
+            onClick={() => handleAddSelectedToCart(recommendation.products)}
+          >
+            <Check className="h-4 w-4" />
+            Add {selectedProducts.size} Selected{" "}
+            {selectedProducts.size === 1 ? "Item" : "Items"} to Cart
+          </Button>
+        </div>
+      )}
+
       {recommendation.discount && (
         <p className="mt-4 text-sm text-green-600 flex items-center gap-1">
           <Sparkles className="h-3 w-3" />
@@ -358,132 +503,140 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
           )
         </p>
       )}
-    </div>
-  );
 
-  const renderPaymentRecommendation = (
-    recommendation: PaymentRecommendation
-  ) => (
-    <div className="mt-2 p-4 bg-white rounded-lg border border-hims-brown/20">
-      <h3 className="font-semibold text-hims-brown flex items-center gap-2">
-        <Sparkles className="h-4 w-4" />
-        {recommendation.title}
-      </h3>
-      <div className="mt-2 flex items-center gap-2">
-        <div className="p-2 bg-hims-beige rounded">
-          <p className="text-sm font-medium">
-            {recommendation.cardType} •••• {recommendation.lastFour}
-          </p>
-        </div>
-      </div>
-      <div className="mt-3">
-        <p className="text-sm text-gray-600 mb-2">Benefits:</p>
-        <ul className="space-y-1">
-          {recommendation.benefits.map((benefit: string, index: number) => (
-            <li
+      {/* Card Offers Section */}
+      <div className="mt-4 p-4 bg-white rounded-lg border border-hims-brown/20">
+        <h3 className="font-semibold text-hims-brown flex items-center gap-2 mb-3">
+          <CreditCard className="h-4 w-4" />
+          Available Card Offers
+        </h3>
+        <div className="space-y-4">
+          {cardOffers.map((offer, index) => (
+            <div
               key={index}
-              className="text-sm text-gray-600 flex items-center gap-2"
+              className="p-3 bg-hims-beige rounded-lg border border-hims-brown/10"
             >
-              <span className="w-1 h-1 bg-hims-brown rounded-full" />
-              {benefit}
-            </li>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium text-hims-brown">
+                  {offer.cardType}
+                </span>
+                <span className="text-green-600 font-semibold">
+                  {offer.discount}% Total Savings
+                </span>
+              </div>
+              <div className="space-y-1">
+                {offer.benefits.map((benefit, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 text-sm text-hims-brown/80"
+                  >
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    {benefit}
+                  </div>
+                ))}
+              </div>
+            </div>
           ))}
-        </ul>
-      </div>
-    </div>
-  );
-
-  const renderDeliveryRecommendation = (
-    recommendation: DeliveryRecommendation
-  ) => (
-    <div className="mt-2 p-4 bg-white rounded-lg border border-hims-brown/20">
-      <h3 className="font-semibold text-hims-brown flex items-center gap-2">
-        <Bot className="h-4 w-4" />
-        {recommendation.title}
-      </h3>
-      <div className="mt-2">
-        <p className="text-sm text-gray-600">
-          {recommendation.address}
-          <br />
-          {recommendation.city}, {recommendation.state} {recommendation.zip}
+        </div>
+        <p className="mt-4 text-sm text-hims-brown/60 flex items-center gap-1">
+          <Sparkles className="h-3 w-3" />
+          AI-powered recommendations for maximum savings
         </p>
-        <div className="mt-2 flex items-center gap-2">
-          <span className="px-2 py-1 bg-green-50 text-green-700 rounded text-xs font-medium">
-            {recommendation.deliverySpeed}
-          </span>
-          <span className="text-xs text-gray-500">
-            AI Confidence: {recommendation.confidence}
-          </span>
-        </div>
       </div>
     </div>
   );
 
-  const renderSubscriptionRecommendation = (
-    recommendation: SubscriptionRecommendation
-  ) => (
-    <div className="mt-2 p-4 bg-white rounded-lg border border-hims-brown/20">
-      <h3 className="font-semibold text-hims-brown flex items-center gap-2">
-        <Sparkles className="h-4 w-4" />
-        {recommendation.title}
-      </h3>
-      <div className="mt-2">
-        <div className="flex items-center gap-2">
-          <span className="px-2 py-1 bg-hims-beige text-hims-brown rounded text-sm font-medium">
-            {recommendation.interval}
-          </span>
-          <span className="text-green-600 text-sm font-medium">
-            Save {recommendation.savings}
-          </span>
+  const renderOptions = () => {
+    if (!showOptions) return null;
+
+    if (!userPreferences.category) {
+      return (
+        <div className="p-4 space-y-2">
+          <Button
+            className="w-full bg-hims-brown hover:bg-hims-brown-dark text-white"
+            onClick={() => handleOptionSelect("hair")}
+          >
+            Hair care solutions
+          </Button>
+          <Button
+            className="w-full bg-hims-brown hover:bg-hims-brown-dark text-white"
+            onClick={() => handleOptionSelect("skin")}
+          >
+            Skin care treatments
+          </Button>
         </div>
-        <div className="mt-3">
-          <p className="text-sm text-gray-600 mb-2">Benefits:</p>
-          <ul className="space-y-1">
-            {recommendation.benefits.map((benefit: string, index: number) => (
-              <li
-                key={index}
-                className="text-sm text-gray-600 flex items-center gap-2"
-              >
-                <span className="w-1 h-1 bg-hims-brown rounded-full" />
-                {benefit}
-              </li>
-            ))}
-          </ul>
+      );
+    }
+
+    const options =
+      userPreferences.category === "hair" ? hairConcerns : skinConcerns;
+
+    return (
+      <div className="p-4 space-y-2">
+        <div className="grid grid-cols-1 gap-2">
+          {options.map((option) => (
+            <Button
+              key={option.id}
+              variant={
+                selectedConcerns.includes(option.value) ? "default" : "outline"
+              }
+              className={`w-full ${
+                selectedConcerns.includes(option.value)
+                  ? "bg-hims-brown text-white"
+                  : "text-hims-brown hover:bg-hims-beige"
+              }`}
+              onClick={() => handleOptionSelect(option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
         </div>
+        {selectedConcerns.length > 0 && (
+          <Button
+            className="w-full bg-hims-brown hover:bg-hims-brown-dark text-white mt-4"
+            onClick={handleConfirmConcerns}
+          >
+            Confirm Selection
+          </Button>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
-      <Sheet open={isOpen} onOpenChange={onClose}>
+      <Sheet open={isOpen} onOpenChange={handleSheetClose}>
         <SheetContent
           side={isMobile ? "bottom" : "right"}
           className={`${
             isMobile
               ? "h-[85vh] border-t rounded-t-[10px] p-0 flex flex-col"
-              : "w-full md:w-[40vw] p-0 border-l-0 sm:border-l bg-hims-beige flex flex-col"
+              : "w-full md:w-[50vw] lg:w-[45vw] p-0 border-l-0 sm:border-l bg-hims-beige flex flex-col"
           }`}
         >
           <SheetHeader className="p-4 border-b bg-hims-brown sticky top-0 z-50 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-hims-beige rounded-full flex items-center justify-center">
-                  <Bot className="h-6 w-6 text-hims-brown" />
+                  <img
+                    src="https://res.cloudinary.com/dbtapyfau/image/upload/v1756903994/ResultFlow.ai_Logo_xixmca.jpg"
+                    alt="ResultFlow AI"
+                    className="h-6 w-6 rounded-full"
+                  />
                 </div>
                 <div>
                   <SheetTitle className="text-xl font-semibold text-white">
-                    Care Assistant
+                    ResultFlow AI Assistant
                   </SheetTitle>
                   <SheetDescription className="text-sm text-hims-beige/80">
-                    Powered by ResultFlow AI
+                    Enterprise Agentic AI
                   </SheetDescription>
                 </div>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={onClose}
+                onClick={handleCloseChat}
                 className="h-10 w-10 text-white hover:text-white/80"
               >
                 <X className="h-5 w-5" />
@@ -548,27 +701,6 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
                       {renderRecommendation(recommendation)}
                     </div>
                   ))}
-                  {message.paymentRecommendation && (
-                    <div className="ml-11 mt-2">
-                      {renderPaymentRecommendation(
-                        message.paymentRecommendation
-                      )}
-                    </div>
-                  )}
-                  {message.deliveryRecommendation && (
-                    <div className="ml-11 mt-2">
-                      {renderDeliveryRecommendation(
-                        message.deliveryRecommendation
-                      )}
-                    </div>
-                  )}
-                  {message.subscriptionRecommendation && (
-                    <div className="ml-11 mt-2">
-                      {renderSubscriptionRecommendation(
-                        message.subscriptionRecommendation
-                      )}
-                    </div>
-                  )}
                 </div>
               ))}
               {isTyping && (
@@ -578,26 +710,46 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
                 </div>
               )}
             </div>
+            {renderOptions()}
           </div>
 
           <div className="p-4 border-t bg-white sticky bottom-0 flex-shrink-0 mt-auto">
-            <div className="flex gap-2">
-              <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type your message..."
-                className="flex-1"
-              />
+            <div className="flex items-center justify-center mb-3">
               <Button
-                onClick={handleSendMessage}
-                disabled={!inputValue.trim() || isTyping}
-                size="icon"
-                className="bg-hims-brown hover:bg-hims-brown-dark"
+                variant="ghost"
+                size="sm"
+                className="text-hims-brown hover:bg-hims-beige flex items-center gap-2"
               >
-                <Send className="h-5 w-5" />
+                📞 Talk to expert
               </Button>
             </div>
+
+            {/* Show input when:
+                1. Options are not being shown OR
+                2. Initial questions have been answered OR
+                3. User has selected a category and concerns */}
+            {(!showOptions ||
+              userPreferences.hasAnsweredInitialQuestions ||
+              (userPreferences.category &&
+                (userPreferences.concerns || []).length > 0)) && (
+              <div className="flex gap-2">
+                <Input
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Type your message..."
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim() || isTyping}
+                  size="icon"
+                  className="bg-hims-brown hover:bg-hims-brown-dark"
+                >
+                  <Send className="h-5 w-5" />
+                </Button>
+              </div>
+            )}
           </div>
         </SheetContent>
       </Sheet>
@@ -607,6 +759,12 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
         onClose={() => setShowSmartCart(false)}
         cartItems={cartItems}
         onUpdateQuantity={handleUpdateQuantity}
+      />
+
+      <TestimonialsDialog
+        isOpen={showTestimonials}
+        onClose={handleTestimonialsClose}
+        onStartJourney={handleRestartJourney}
       />
     </>
   );
