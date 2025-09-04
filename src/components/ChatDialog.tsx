@@ -8,7 +8,6 @@ import {
   Check,
   CheckSquare,
   Square,
-  CreditCard,
 } from "lucide-react";
 import Markdown from "markdown-to-jsx";
 import { Button } from "@/components/ui/button";
@@ -29,7 +28,6 @@ import {
 import { mockRecommendations } from "@/data/mockData";
 import SmartCartForHims from "./SmartCartForHims";
 import { useIsMobile } from "@/hooks/use-mobile";
-import TestimonialsDialog from "./TestimonialsDialog";
 
 interface ChatDialogProps {
   isOpen: boolean;
@@ -47,46 +45,6 @@ interface Option {
   label: string;
   value: string;
 }
-
-interface CardOffer {
-  cardType: string;
-  logo: string;
-  benefits: string[];
-  discount: number;
-}
-
-const cardOffers: CardOffer[] = [
-  {
-    cardType: "Bank of America",
-    logo: "https://res.cloudinary.com/dbtapyfau/image/upload/v1756766546/boa-logo.png",
-    benefits: [
-      "6% off on all purchases",
-      "Additional 5% on subscriptions",
-      "Free express shipping",
-    ],
-    discount: 11,
-  },
-  {
-    cardType: "Chase",
-    logo: "https://res.cloudinary.com/dbtapyfau/image/upload/v1756766546/chase-logo.png",
-    benefits: [
-      "5% cashback on first purchase",
-      "3% off on subscriptions",
-      "Priority delivery",
-    ],
-    discount: 8,
-  },
-  {
-    cardType: "Citi",
-    logo: "https://res.cloudinary.com/dbtapyfau/image/upload/v1756766546/citi-logo.png",
-    benefits: [
-      "4% off on all purchases",
-      "Double rewards points",
-      "Extended return period",
-    ],
-    discount: 4,
-  },
-];
 
 const hairConcerns: Option[] = [
   { id: "1", label: "Hair thinning or loss", value: "thinning" },
@@ -125,55 +83,12 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
   const [selectedProducts, setSelectedProducts] = useState<Set<string>>(
     new Set()
   );
-  const [showTestimonials, setShowTestimonials] = useState(false);
-
-  // Handle restarting the journey
-  const handleRestartJourney = useCallback(() => {
-    console.log("Restarting journey"); // Debug log
-
-    // First close testimonials
-    setShowTestimonials(false);
-
-    // Reset states
-    setUserPreferences({
-      hasAnsweredInitialQuestions: false,
-      category: undefined,
-      concerns: undefined,
-    });
-    setSelectedConcerns([]);
-    setShowOptions(true);
-    setSelectedProducts(new Set());
-
-    // Add welcome message
-    setMessages([
-      {
-        id: Date.now().toString(),
-        type: "assistant",
-        content:
-          "Welcome back! I'm excited to help you find the perfect solutions for your needs. Let's start fresh and find what works best for you. What would you like to focus on improving today?",
-        timestamp: new Date(),
-      },
-    ]);
-
-    // Force reopen chat
-    setTimeout(() => {
-      console.log("Opening chat dialog"); // Debug log
-      if (!isOpen) {
-        onClose(); // Toggle open if closed
-      }
-    }, 300);
-  }, [onClose, isOpen]);
 
   // Handle closing the chat dialog
   const handleCloseChat = useCallback(() => {
     console.log("Closing chat dialog"); // Debug log
     if (isOpen) {
       onClose();
-      // Show testimonials after a delay
-      setTimeout(() => {
-        console.log("Opening testimonials dialog"); // Debug log
-        setShowTestimonials(true);
-      }, 300);
     }
   }, [onClose, isOpen]);
 
@@ -188,17 +103,10 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
     [handleCloseChat, isOpen]
   );
 
-  // Handle testimonials close
-  const handleTestimonialsClose = useCallback(() => {
-    console.log("Closing testimonials"); // Debug log
-    setShowTestimonials(false);
-  }, []);
-
   // Monitor state changes
   useEffect(() => {
     if (isOpen) {
       console.log("Chat dialog opened"); // Debug log
-      setShowTestimonials(false);
     } else {
       console.log("Chat dialog closed"); // Debug log
     }
@@ -503,46 +411,6 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
           )
         </p>
       )}
-
-      {/* Card Offers Section */}
-      <div className="mt-4 p-4 bg-white rounded-lg border border-hims-brown/20">
-        <h3 className="font-semibold text-hims-brown flex items-center gap-2 mb-3">
-          <CreditCard className="h-4 w-4" />
-          Available Card Offers
-        </h3>
-        <div className="space-y-4">
-          {cardOffers.map((offer, index) => (
-            <div
-              key={index}
-              className="p-3 bg-hims-beige rounded-lg border border-hims-brown/10"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-medium text-hims-brown">
-                  {offer.cardType}
-                </span>
-                <span className="text-green-600 font-semibold">
-                  {offer.discount}% Total Savings
-                </span>
-              </div>
-              <div className="space-y-1">
-                {offer.benefits.map((benefit, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-2 text-sm text-hims-brown/80"
-                  >
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    {benefit}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="mt-4 text-sm text-hims-brown/60 flex items-center gap-1">
-          <Sparkles className="h-3 w-3" />
-          AI-powered recommendations for maximum savings
-        </p>
-      </div>
     </div>
   );
 
@@ -761,11 +629,7 @@ const ChatDialog = ({ isOpen, onClose }: ChatDialogProps) => {
         onUpdateQuantity={handleUpdateQuantity}
       />
 
-      <TestimonialsDialog
-        isOpen={showTestimonials}
-        onClose={handleTestimonialsClose}
-        onStartJourney={handleRestartJourney}
-      />
+      {/* TestimonialsDialog removed */}
     </>
   );
 };
