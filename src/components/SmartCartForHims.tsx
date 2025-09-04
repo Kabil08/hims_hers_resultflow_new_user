@@ -134,20 +134,13 @@ const SmartCartForHims = ({
   const renderHeader = () => (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-hims-brown rounded-full flex items-center justify-center overflow-hidden">
-          <img
-            src="https://res.cloudinary.com/dbtapyfau/image/upload/v1756903994/ResultFlow.ai_Logo_xixmca.jpg"
-            alt="ResultFlow AI"
-            className="w-full h-full object-cover"
-          />
-        </div>
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-hims-brown">
-              ResultFlow Smart Cart
+              Your Smart Cart
             </h2>
           </div>
-          <p className="text-sm text-hims-brown/60">Powered by ResultFlow AI</p>
+          <p className="text-sm text-hims-brown/60">Powered by ResultFlow.ai</p>
         </div>
       </div>
       <Button
