@@ -4,16 +4,19 @@ import FloatingChatButton from "@/components/FloatingChatButton";
 import ChatDialog from "@/components/ChatDialog";
 import "./App.css";
 
+const HIMS_IMAGE_URL =
+  "https://res.cloudinary.com/dsf1qebes/image/upload/v1771198953/Screenshot_2026-02-16_at_5.11.37_AM_bcqido.png";
+
 function HimsIframe() {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
   return (
     <div className="fixed inset-0 w-screen h-screen overflow-hidden">
       <div className="relative w-full h-full z-0">
-        <iframe
-          src="https://www.hims.com"
-          className="w-full h-full border-0"
-          title="Hims Website"
+        <img
+          src={HIMS_IMAGE_URL}
+          alt="Hims Website"
+          className="w-full h-full object-cover object-top"
         />
       </div>
       <div className="relative z-50">
